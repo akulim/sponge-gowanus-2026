@@ -18,7 +18,7 @@ def get_historical():
             return jsonify({"error": "File not found"}), 404
             
         # Read file
-        df = pd.read_csv('continuous.csv')
+        df = pd.read_csv('continuous (1).csv')
         print(f"SUCCESS: Loaded CSV with {len(df)} rows")
         print(f"COLUMNS FOUND: {df.columns.tolist()}")
 
