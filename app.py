@@ -1,56 +1,36 @@
-import os
-import pandas as pd
 from flask import Flask, render_template, jsonify
+import pandas as pd
 
-app = Flask(__name__, template_folder='templates')
+app = Flask(__name__)
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/api/historical')
-def get_historical():
-    print("API: Historical request received")
-    try:
-        # Check if file exists first
-        if not os.path.exists('continuous (1).csv'):
-            print("ERROR: continuous.csv NOT FOUND in root directory")
-            return jsonify({"error": "File not found"}), 404
-            
-        # Read file
-        df = pd.read_csv('continuous (1).csv')
-        print(f"SUCCESS: Loaded CSV with {len(df)} rows")
-        print(f"COLUMNS FOUND: {df.columns.tolist()}")
+@app.route('/api/data/<mode>')
+def get_data(mode):
+    file = 'before_data.csv' if mode == 'before' else 'after_data.csv'
+    df = pd.read_csv(file)
+    
+    labels = df['time'].tolist()
+    values = df['value'].tolist()
+    
+    # We judge the "Current Status" by the very last value in the list
+    latest_val = values[-1]
+    
+    if mode == 'before':
+        # "Before" mode is always "Unpredictable"
+        status = {"color": "#6b7280", "msg": "MODE: RAW SENSOR", "act": "Data is unverified."}
+    else:
+        # "After" mode uses our Logic
+        if latest_val < 1.6:
+            status = {"color": "#10b981", "msg": "SAFE: Tidal Baseline", "act": "Kayaking Allowed"}
+        elif latest_val < 2.3:
+            status = {"color": "#f59e0b", "msg": "CAUTION: Rising Tide", "act": "Walking Only"}
+        else:
+            status = {"color": "#ef4444", "msg": "DANGER: Flood/CSO Alert", "act": "Stay Away - Contamination Risk"}
 
-        df['time'] = pd.to_datetime(df['time'])
-        
-        # Grab the biggest spike to ensure we have data
-        storm = df.sort_values('value', ascending=False).head(100).sort_values('time')
-        
-        data = {
-            "labels": storm['time'].dt.strftime('%m/%d %H:%M').tolist(),
-            "values": storm['value'].tolist()
-        }
-        print(f"SENDING: {len(data['values'])} data points")
-        return jsonify(data)
-        
-    except Exception as e:
-        print(f"CRITICAL ERROR: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+    return jsonify({"labels": labels, "values": values, "status": status, "current": round(latest_val, 2)})
 
-@app.route('/api/forecast')
-def get_forecast():
-    import math
-    from datetime import datetime, timedelta
-    print("API: Forecast request received")
-    forecast = []
-    start = datetime(2026, 3, 1)
-    for i in range(48):
-        tide = 1.0 + math.sin(i * (2 * math.pi / 12.4)) * 1.5
-        val = round(tide + (2.0 if 24 <= i <= 36 else 0), 2)
-        forecast.append({"time": (start + timedelta(hours=i)).strftime('%H:%M'), "value": val})
-    return jsonify(forecast)
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)
+if __name__ == '__main__':
+    app.run(debug=True)
