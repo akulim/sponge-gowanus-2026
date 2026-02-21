@@ -63,36 +63,44 @@
     <script>
         let chart;
         function fetchData() {
-            const date = document.getElementById('datePicker').value;
-            fetch(`/api/data?date=${date}`).then(r => r.json()).then(data => {
-                const latestLvl = data.levels[data.levels.length - 1];
-                const latestTox = data.toxins[data.toxins.length - 1];
+    const date = document.getElementById('datePicker').value;
+    fetch(`/api/data?date=${date}`).then(r => r.json()).then(data => {
+        const latestTox = data.toxins[data.toxins.length - 1];
+        const latestLvl = data.levels[data.levels.length - 1];
 
-                // Update Scorecards
-                document.getElementById('lvl-val').innerText = latestLvl.toFixed(2) + " ft";
-                document.getElementById('tox-val').innerText = Math.round(latestTox) + "%";
+        // --- NEW COLOR LOGIC ---
+        let themeColor = "#0070f3"; // Default: Normal Blue
+        let statusText = "SAFE";
+
+        if (latestTox > 50 && latestTox <= 75) {
+            themeColor = "#7928ca"; // Warning: Purple
+            statusText = "CAUTION";
+        } else if (latestTox > 75) {
+            themeColor = "#ff0000"; // Danger: Red
+            statusText = "DANGER";
+        }
+
+        // --- UPDATE THE UI ---
+        // 1. Change the Scorecard Text
+        document.getElementById('tox-val').style.color = themeColor;
+        document.getElementById('risk-text').innerText = statusText;
+        document.getElementById('risk-text').style.color = themeColor;
+
+        // 2. Change the Animated Water Color
+        document.getElementById('wave-bg').style.backgroundColor = themeColor;
+        document.getElementById('wave-bg').style.boxShadow = `0 0 50px ${themeColor}55`;
+
+        // 3. Update the Water Level (Height)
+        // We scale the height so 5ft = 100% of the screen
+        document.getElementById('wave-bg').style.height = (latestLvl / 5 * 100) + "%";
                 
-                // Update Color Logic
-                let color = "#238636"; // Green
-                let risk = "SAFE";
-                if(latestTox > 40) { color = "#d29922"; risk = "CAUTION"; }
-                if(latestTox > 70) { color = "#f85149"; risk = "DANGER"; }
-                
-                document.getElementById('tox-val').style.color = color;
-                document.getElementById('wave-bg').style.backgroundColor = color;
-                document.getElementById('risk-text').innerText = risk;
-                document.getElementById('risk-text').style.color = color;
-
-                // Update Animation (Max height 100% at 5ft)
-                document.getElementById('wave-bg').style.height = (latestLvl / 5 * 100) + "%";
-
-                // Update Chart
-                if(chart) chart.destroy();
-                const ctx = document.getElementById('mainChart').getContext('2d');
-                chart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: data.labels,
+        // Update Chart
+        if(chart) chart.destroy();
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                    labels: data.labels,
                         datasets: [
                             { label: 'Level', data: data.levels, borderColor: '#58a6ff', tension: 0.4, yAxisID: 'y' },
                             { label: 'Toxins', data: data.toxins, borderColor: color, borderDash: [5,5], yAxisID: 'y1' }
