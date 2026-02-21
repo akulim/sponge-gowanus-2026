@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gowanus Predictor</title>
+    <style>
+        body { font-family: sans-serif; background: #111; color: white; text-align: center; }
+        #canvas-wrap { position: relative; height: 350px; background: #222; overflow: hidden; margin: 20px auto; width: 90%; border-radius: 15px;}
+        canvas { position: absolute; bottom: 0; left: 0; }
+        .controls { margin: 20px; padding: 20px; background: #333; border-radius: 10px; display: inline-block; }
+        .status-card { padding: 20px; margin: 20px auto; width: 80%; border-left: 10px solid #2ecc71; background: #222; }
+        select { padding: 10px; font-size: 16px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Gowanus Canal: Predictive Safety Archive</h1>
+
+    <div class="controls">
+        <label>Analyze Historical Event: </label>
+        <select id="eventSelector" onchange="fetchData()">
+            <option value="current">Current (Baseline)</option>
+            <option value="moderate">Moderate Rain (35mm)</option>
+            <option value="cloudburst">2023 Cloudburst (120mm)</option>
+            <option value="ida">Hurricane Ida (180mm)</option>
+        </select>
+    </div>
+
+    <div id="canvas-wrap">
+        <canvas id="waterCanvas"></canvas>
+    </div>
+
+    <div class="status-card" id="card">
+        <h2 id="pred-text">SAFE FOR RECREATION</h2>
+        <p id="rain-detail">Rainfall: 0.5mm</p>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('waterCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = 350;
+
+        let targetH = 20; 
+        let currentH = 20;
+        let waterColor = "#3498db";
+        let offset = 0;
+
+        async function fetchData() {
+            const event = document.getElementById('eventSelector').value;
+            const res = await fetch(`/api/status?event=${event}`);
+            const data = await res.json();
+            
+            targetH = data.water_level;
+            document.getElementById('pred-text').innerText = data.prediction;
+            document.getElementById('rain-detail').innerText = "Rainfall detected: " + data.rain + "mm";
+            document.getElementById('card').style.borderColor = data.color;
+            
+            // Turn water brown if rain is high
+            if(data.rain > 5) waterColor = "#5d4037"; // Muddy Brown
+            else waterColor = "#3498db"; // Clean Blue
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Smoothly move water level
+            currentH += (targetH - currentH) * 0.05;
+            
+            ctx.fillStyle = waterColor;
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            for (let x = 0; x <= canvas.width; x++) {
+                let y = Math.sin(x * 0.02 + offset) * 5 + (canvas.height - (currentH * 3.5));
+                ctx.lineTo(x, y);
+            }
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.fill();
+            
+            offset += 0.05;
+            requestAnimationFrame(animate);
+        }
+
+        fetchData();
+        animate();
+    </script>
+</body>
+</html>
