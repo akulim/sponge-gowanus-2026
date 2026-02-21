@@ -28,16 +28,22 @@
 </head>
 <body>
 
-    <div class="sidebar">
-        <h2>GOWANUS AI</h2>
-        <p>Backdate Model View:</p>
-        <input type="date" id="datePicker" value="2026-02-21" onchange="fetchData()">
-        <hr style="border: 0.5px solid #30363d; margin: 20px 0;">
-        <div class="scorecard" id="status-card">
-            <h4 id="activity-label">Current Risk</h4>
-            <div class="val" id="risk-text">LOW</div>
-        </div>
+    <div style="margin-top: 30px; font-size: 13px; color: #8b949e;">
+    <h4>LEGEND</h4>
+    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+        <div style="width: 12px; height: 12px; background: #58a6ff; margin-right: 10px; border-radius: 2px;"></div>
+        <span>Water Level (Gage ft)</span>
     </div>
+    <div style="display: flex; align-items: center; margin-bottom: 20px;">
+        <div style="width: 12px; height: 12px; border: 2px dashed #0070f3; margin-right: 10px; border-radius: 2px;"></div>
+        <span>Contamination Index (%)</span>
+    </div>
+
+    <h4>CONTAMINATION SCALE</h4>
+    <p><span style="color: #0070f3;">●</span> 0-50%: Safe (Tidal Flow)</p>
+    <p><span style="color: #7928ca;">●</span> 51-75%: Caution (Runoff)</p>
+    <p><span style="color: #ff0000;">●</span> 76-100%: Danger (CSO Event)</p>
+</div>
 
     <div class="main">
         <div class="score-grid">
@@ -119,26 +125,25 @@
                     ]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: { 
-                            position: 'left', 
-                            grid: { color: '#30363d' },
-                            ticks: { color: '#8b949e' }
+                        responsive: true,
+                        maintainAspectRatio: false,
+                scales: {
+                        y: { position: 'left', grid: { color: '#30363d' }, ticks: { color: '#8b949e' } },
+                        y1: { position: 'right', display: false },
+                        x: { ticks: { color: '#8b949e' } }
                         },
-                        y1: { 
-                            position: 'right', 
-                            display: false // Keeps it hidden but uses the data
-                        },
-                        x: {
-                            ticks: { color: '#8b949e', maxRotation: 0 }
-                        }
-                    },
-                    plugins: { 
-                        legend: { display: false } 
-                    }
-                }
+                plugins: { 
+                legend: { 
+                    display: true, 
+                    position: 'top',
+                    labels: {
+                        color: '#c9d1d9', // Light gray text for dark mode
+                        font: { size: 12 },
+                        usePointStyle: true // Makes the icons circles/lines instead of boxes
+            }
+        } 
+    }
+}
             });
         });
     }
