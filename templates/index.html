@@ -61,63 +61,88 @@
     </div>
 
     <script>
-        let chart;
-        function fetchData() {
-    const date = document.getElementById('datePicker').value;
-    fetch(`/api/data?date=${date}`).then(r => r.json()).then(data => {
-        const latestTox = data.toxins[data.toxins.length - 1];
-        const latestLvl = data.levels[data.levels.length - 1];
+    let chart;
+    function fetchData() {
+        const date = document.getElementById('datePicker').value;
+        fetch(`/api/data?date=${date}`).then(r => r.json()).then(data => {
+            const latestTox = data.toxins[data.toxins.length - 1];
+            const latestLvl = data.levels[data.levels.length - 1];
 
-        // --- NEW COLOR LOGIC ---
-        let themeColor = "#0070f3"; // Default: Normal Blue
-        let statusText = "SAFE";
+            // --- COLOR LOGIC ---
+            let themeColor = "#0070f3"; // Normal Blue
+            let statusText = "SAFE";
 
-        if (latestTox > 50 && latestTox <= 75) {
-            themeColor = "#7928ca"; // Warning: Purple
-            statusText = "CAUTION";
-        } else if (latestTox > 75) {
-            themeColor = "#ff0000"; // Danger: Red
-            statusText = "DANGER";
-        }
+            if (latestTox > 50 && latestTox <= 75) {
+                themeColor = "#7928ca"; // Purple
+                statusText = "CAUTION";
+            } else if (latestTox > 75) {
+                themeColor = "#ff0000"; // Red
+                statusText = "DANGER";
+            }
 
-        // --- UPDATE THE UI ---
-        // 1. Change the Scorecard Text
-        document.getElementById('tox-val').style.color = themeColor;
-        document.getElementById('risk-text').innerText = statusText;
-        document.getElementById('risk-text').style.color = themeColor;
+            // --- 1. UPDATE SCORECARDS ---
+            document.getElementById('lvl-val').innerText = latestLvl.toFixed(2) + " ft";
+            document.getElementById('tox-val').innerText = Math.round(latestTox) + "%";
+            document.getElementById('tox-val').style.color = themeColor;
+            document.getElementById('risk-text').innerText = statusText;
+            document.getElementById('risk-text').style.color = themeColor;
 
-        // 2. Change the Animated Water Color
-        document.getElementById('wave-bg').style.backgroundColor = themeColor;
-        document.getElementById('wave-bg').style.boxShadow = `0 0 50px ${themeColor}55`;
+            // --- 2. UPDATE ANIMATION ---
+            document.getElementById('wave-bg').style.backgroundColor = themeColor;
+            document.getElementById('wave-bg').style.boxShadow = `0 0 50px ${themeColor}55`;
+            document.getElementById('wave-bg').style.height = (latestLvl / 5 * 100) + "%";
 
-        // 3. Update the Water Level (Height)
-        // We scale the height so 5ft = 100% of the screen
-        document.getElementById('wave-bg').style.height = (latestLvl / 5 * 100) + "%";
-                
-        // Update Chart
-        if(chart) chart.destroy();
-        const ctx = document.getElementById('mainChart').getContext('2d');
-        chart = new Chart(ctx, {
-            type: 'line',
-            data: {
+            // --- 3. UPDATE CHART ---
+            if (chart) chart.destroy();
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
                     labels: data.labels,
-                        datasets: [
-                            { label: 'Level', data: data.levels, borderColor: '#58a6ff', tension: 0.4, yAxisID: 'y' },
-                            { label: 'Toxins', data: data.toxins, borderColor: color, borderDash: [5,5], yAxisID: 'y1' }
-                        ]
-                    },
-                    options: { 
-                        responsive: true, maintainAspectRatio: false,
-                        scales: { 
-                            y: { position: 'left', grid: { color: '#30363d' } },
-                            y1: { position: 'right', display: false }
+                    datasets: [
+                        { 
+                            label: 'Level', 
+                            data: data.levels, 
+                            borderColor: '#58a6ff', 
+                            tension: 0.4, 
+                            yAxisID: 'y',
+                            pointRadius: 0 // Makes it look cleaner
                         },
-                        plugins: { legend: { display: false } }
+                        { 
+                            label: 'Toxins', 
+                            data: data.toxins, 
+                            borderColor: themeColor, // FIXED: Changed from 'color' to 'themeColor'
+                            borderDash: [5, 5], 
+                            yAxisID: 'y1',
+                            pointRadius: 0 
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { 
+                            position: 'left', 
+                            grid: { color: '#30363d' },
+                            ticks: { color: '#8b949e' }
+                        },
+                        y1: { 
+                            position: 'right', 
+                            display: false // Keeps it hidden but uses the data
+                        },
+                        x: {
+                            ticks: { color: '#8b949e', maxRotation: 0 }
+                        }
+                    },
+                    plugins: { 
+                        legend: { display: false } 
                     }
-                });
+                }
             });
-        }
-        fetchData();
-    </script>
+        });
+    }
+    fetchData(); // Run on load
+</script>
 </body>
 </html>
