@@ -1,67 +1,54 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Gowanus Debug Mode</title>
+    <title>Gowanus Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { background: #0f172a; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
-        .card { background: #1e293b; padding: 20px; border-radius: 15px; max-width: 800px; margin: auto; }
-        button { padding: 10px 20px; margin: 10px; cursor: pointer; background: #38bdf8; border: none; border-radius: 5px; font-weight: bold; }
-        #status { color: #fbbf24; margin: 10px; font-weight: bold; }
+        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 40px; }
+        .container { background: white; width: 900px; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .status-box { padding: 20px; border-radius: 10px; color: white; margin: 20px 0; transition: 0.5s; }
+        .btn-group { margin-bottom: 20px; }
+        button { padding: 12px 20px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; margin: 5px; }
+        #val-display { font-size: 3rem; font-weight: bold; display: block; }
     </style>
 </head>
 <body>
-
-    <h1>Gowanus Canal System</h1>
-    <p>Debug Mode Active</p>
-
-    <div class="card">
-        <button onclick="fetchData('/api/historical')">1. Test Historical (CSV)</button>
-        <button onclick="fetchData('/api/forecast')">2. Test Forecast (Math)</button>
+    <div class="container">
+        <h2>Gowanus Canal Intelligence</h2>
         
-        <div id="status">Status: Waiting for input...</div>
-        <canvas id="myChart"></canvas>
+        <div class="btn-group">
+            <button style="background: #6b7280; color: white;" onclick="loadData('before')">Historical (Raw)</button>
+            <button style="background: #3b82f6; color: white;" onclick="loadData('after')">AI Predicted (Clean)</button>
+        </div>
+
+        <div id="status-card" class="status-box" style="background: #6b7280;">
+            <span id="val-display">0.0</span>
+            <h3 id="msg">Select Mode to Analyze</h3>
+            <p id="act"></p>
+        </div>
+
+        <canvas id="chart"></canvas>
     </div>
 
     <script>
         let chart;
-        async function fetchData(url) {
-            const status = document.getElementById('status');
-            status.innerText = "Status: Fetching data...";
-            console.log("Fetching from:", url);
+        function loadData(mode) {
+            fetch('/api/data/' + mode).then(r => r.json()).then(data => {
+                document.getElementById('val-display').innerText = data.current + " ft";
+                document.getElementById('status-card').style.backgroundColor = data.status.color;
+                document.getElementById('msg').innerText = data.status.msg;
+                document.getElementById('act').innerText = data.status.act;
 
-            try {
-                const response = await fetch(url);
-                console.log("Response status:", response.status);
-                
-                if (!response.ok) {
-                    const errBody = await response.json();
-                    throw new Error(errBody.error || "Server Error");
-                }
-
-                const data = await response.json();
-                console.log("Data received:", data);
-
-                // Handle both formats (Object with labels/values OR Array of objects)
-                const labels = data.labels || data.map(d => d.time);
-                const values = data.values || data.map(d => d.value);
-
-                if (chart) chart.destroy();
-                const ctx = document.getElementById('myChart').getContext('2d');
-                chart = new Chart(ctx, {
+                if(chart) chart.destroy();
+                chart = new Chart(document.getElementById('chart'), {
                     type: 'line',
                     data: {
-                        labels: labels,
-                        datasets: [{ label: 'Gage Height', data: values, borderColor: '#38bdf8' }]
-                    }
+                        labels: data.labels.map(l => l.split(' ')[1]),
+                        datasets: [{ label: 'Water Level', data: data.values, borderColor: 'white', backgroundColor: data.status.color + '44', fill: true }]
+                    },
+                    options: { scales: { y: { min: 0, max: 5 } } }
                 });
-
-                status.innerText = "Status: Success!";
-            } catch (err) {
-                console.error("Full Error:", err);
-                status.innerText = "Status: ERROR - " + err.message;
-                alert("App Error: " + err.message);
-            }
+            });
         }
     </script>
 </body>
