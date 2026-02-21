@@ -31,6 +31,19 @@
     </div>
 
     <script>
+        async function showHistorical() {
+    const res = await fetch('/api/historical');
+    const data = await res.json();
+    updateChart(data.labels, data.values, "Historical Surge (Oct 30)");
+}
+
+async function showForecast() {
+    const res = await fetch('/api/forecast');
+    const data = await res.json();
+    const labels = data.map(d => d.time);
+    const values = data.map(d => d.value);
+    updateChart(labels, values, "Predicted Level (March 1-2)", true); // Pass true for 'dotted line'
+}
         // 1. Fetch Data and Setup Chart
         async function initDashboard() {
             const res = await fetch('/api/historical-data');
