@@ -1,6 +1,5 @@
 import os
-import random
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify
 
 app = Flask(__name__, template_folder='templates')
 
@@ -8,44 +7,17 @@ app = Flask(__name__, template_folder='templates')
 def index():
     return render_template('index.html')
 
-@app.route('/api/status')
-def get_status():
-    event = request.args.get('event', 'current')
-    
-    # Historical Data Archive (Rain in mm)
-    # 0mm = Clear, 50mm = Flood, 120mm = Extreme
-    data_points = {
-        'current': 0.5,
-        'ida': 180,        # Hurricane Ida
-        'cloudburst': 120, # Sept 2023 Flood
-        'moderate': 35     # Typical Storm
+@app.route('/api/historical-data')
+def get_historical():
+    # Simulated data reflecting the Sept 2023 flood event
+    # Hours represents a 12-hour window during a storm
+    data = {
+        "labels": ["12pm", "1pm", "2pm", "3pm", "4pm", "5pm", "6pm", "7pm"],
+        "precipitation": [0, 2, 15, 45, 80, 40, 10, 5], # mm
+        "contamination": [150, 400, 2500, 8000, 15000, 12000, 9000, 6000] # CFU/100mL
     }
-    
-    rain = data_points.get(event, 0)
-    
-    # Logic for contamination and height
-    # Height scales from 20% to 95%
-    h_level = min(95, 20 + (rain * 0.6)) 
-    
-    # Safety Prediction
-    if rain > 50:
-        prediction = "DANGER: EXTREME FLOOD & SEWAGE"
-        color = "#e74c3c" # Red
-    elif rain > 5:
-        prediction = "WARNING: CSO OVERFLOW ACTIVE"
-        color = "#f1c40f" # Yellow
-    else:
-        prediction = "SAFE FOR RECREATION"
-        color = "#2ecc71" # Green
-
-    return jsonify({
-        "rain": rain,
-        "water_level": h_level,
-        "prediction": prediction,
-        "color": color
-    })
+    return jsonify(data)
 
 if __name__ == "__main__":
-    # This port logic is the key to fixing 502 errors
     port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
