@@ -13,7 +13,7 @@ def index():
 # MODE 1: THE HISTORIAN (Oct 30 Data)
 @app.route('/api/historical')
 def get_historical():
-    df = pd.read_csv('continuous (1).csv', sep=';')
+    df = pd.read_csv('continuous (1).csv')
     df['time'] = pd.to_datetime(df['time'])
     # Filter for the Oct 30 surge you found
     storm = df[(df['time'] >= '2025-10-30') & (df['time'] <= '2025-10-31')].sort_values('time')
