@@ -1,108 +1,68 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Gowanus Forensic Predictor</title>
+    <title>Gowanus Debug Mode</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; margin: 0; padding: 20px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 1200px; margin: auto; }
-        .card { background: #1e293b; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        #canvas-wrap { height: 300px; background: #0f172a; border-radius: 8px; position: relative; overflow: hidden; }
-        canvas#water { position: absolute; bottom: 0; }
-        h1 { text-align: center; color: #38bdf8; }
+        body { background: #0f172a; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
+        .card { background: #1e293b; padding: 20px; border-radius: 15px; max-width: 800px; margin: auto; }
+        button { padding: 10px 20px; margin: 10px; cursor: pointer; background: #38bdf8; border: none; border-radius: 5px; font-weight: bold; }
+        #status { color: #fbbf24; margin: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h1>Gowanus Predictive Analytics</h1>
-    
-    <div class="grid">
-        <div class="card">
-            <h3>Visualizing the Pulse</h3>
-            <div id="canvas-wrap">
-                <canvas id="water"></canvas>
-            </div>
-            <p id="prediction-text" style="font-weight: bold; margin-top: 15px;">Status: Analyzing...</p>
-        </div>
 
-        <div class="card">
-            <h3>Rainfall vs. Contamination (Historical)</h3>
-            <canvas id="myChart"></canvas>
-        </div>
+    <h1>Gowanus Canal System</h1>
+    <p>Debug Mode Active</p>
+
+    <div class="card">
+        <button onclick="fetchData('/api/historical')">1. Test Historical (CSV)</button>
+        <button onclick="fetchData('/api/forecast')">2. Test Forecast (Math)</button>
+        
+        <div id="status">Status: Waiting for input...</div>
+        <canvas id="myChart"></canvas>
     </div>
 
     <script>
-        async function showHistorical() {
-    const res = await fetch('/api/historical');
-    const data = await res.json();
-    updateChart(data.labels, data.values, "Historical Surge (Oct 30)");
-}
+        let chart;
+        async function fetchData(url) {
+            const status = document.getElementById('status');
+            status.innerText = "Status: Fetching data...";
+            console.log("Fetching from:", url);
 
-async function showForecast() {
-    const res = await fetch('/api/forecast');
-    const data = await res.json();
-    const labels = data.map(d => d.time);
-    const values = data.map(d => d.value);
-    updateChart(labels, values, "Predicted Level (March 1-2)", true); // Pass true for 'dotted line'
-}
-        // 1. Fetch Data and Setup Chart
-        async function initDashboard() {
-            const res = await fetch('/api/historical-data');
-            const data = await res.json();
-
-            const ctx = document.getElementById('myChart').getContext('2d');
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: data.labels,
-                    datasets: [{
-                        label: 'Rain (mm)',
-                        data: data.precipitation,
-                        borderColor: '#38bdf8',
-                        yAxisID: 'y',
-                    }, {
-                        label: 'Contamination (CFU)',
-                        data: data.contamination,
-                        borderColor: '#fbbf24',
-                        yAxisID: 'y1',
-                    }]
-                },
-                options: {
-                    scales: {
-                        y: { type: 'linear', position: 'left', title: {display: true, text: 'Rain (mm)'}},
-                        y1: { type: 'linear', position: 'right', title: {display: true, text: 'Bacteria (CFU)'}, grid: {drawOnChartArea: false}}
-                    }
+            try {
+                const response = await fetch(url);
+                console.log("Response status:", response.status);
+                
+                if (!response.ok) {
+                    const errBody = await response.json();
+                    throw new Error(errBody.error || "Server Error");
                 }
-            });
-            
-            // Set animation based on the peak of the chart
-            targetH = 85; 
-            document.getElementById('prediction-text').innerText = "Prediction: 98% Probability of CSO Overflow based on 2023 flood patterns.";
-            document.getElementById('prediction-text').style.color = "#ef4444";
-        }
 
-        // 2. Water Animation (Same as before)
-        const wCanvas = document.getElementById('water');
-        const wCtx = wCanvas.getContext('2d');
-        wCanvas.width = 500; wCanvas.height = 300;
-        let targetH = 20; let currentH = 20; let offset = 0;
+                const data = await response.json();
+                console.log("Data received:", data);
 
-        function animateWater() {
-            wCtx.clearRect(0, 0, 500, 300);
-            currentH += (targetH - currentH) * 0.02;
-            wCtx.fillStyle = (currentH > 50) ? "#5d4037" : "#0ea5e9";
-            wCtx.beginPath();
-            wCtx.moveTo(0, 300);
-            for (let x = 0; x <= 500; x++) {
-                let y = Math.sin(x * 0.02 + offset) * 5 + (300 - currentH * 2.5);
-                wCtx.lineTo(x, y);
+                // Handle both formats (Object with labels/values OR Array of objects)
+                const labels = data.labels || data.map(d => d.time);
+                const values = data.values || data.map(d => d.value);
+
+                if (chart) chart.destroy();
+                const ctx = document.getElementById('myChart').getContext('2d');
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{ label: 'Gage Height', data: values, borderColor: '#38bdf8' }]
+                    }
+                });
+
+                status.innerText = "Status: Success!";
+            } catch (err) {
+                console.error("Full Error:", err);
+                status.innerText = "Status: ERROR - " + err.message;
+                alert("App Error: " + err.message);
             }
-            wCtx.lineTo(500, 300); wCtx.fill();
-            offset += 0.05;
-            requestAnimationFrame(animateWater);
         }
-
-        initDashboard();
-        animateWater();
     </script>
 </body>
 </html>
