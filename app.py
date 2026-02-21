@@ -1,7 +1,5 @@
 import os
 import pandas as pd
-import math
-from datetime import datetime, timedelta
 from flask import Flask, render_template, jsonify
 
 app = Flask(__name__, template_folder='templates')
@@ -10,39 +8,39 @@ app = Flask(__name__, template_folder='templates')
 def index():
     return render_template('index.html')
 
-# MODE 1: THE HISTORIAN (Oct 30 Data)
 @app.route('/api/historical')
 def get_historical():
-    df = pd.read_csv('continuous (1).csv')
-    df['time'] = pd.to_datetime(df['time'])
-    # Filter for the Oct 30 surge you found
-    storm = df[(df['time'] >= '2025-10-30') & (df['time'] <= '2025-10-31')].sort_values('time')
-    return jsonify({
-        "labels": storm['time'].dt.strftime('%H:%M').tolist(),
-        "values": storm['value'].tolist()
-    })
+    try:
+        # Load the file - standard comma now
+        df = pd.read_csv('continuous (1).csv')
+        df['time'] = pd.to_datetime(df['time'])
+        
+        # BROAD FILTER: Look for the big Oct 30 surge
+        storm = df[(df['time'] >= '2025-10-30') & (df['time'] <= '2025-10-31')].sort_values('time')
+        
+        # BACKUP: If Oct 30 is empty, just grab the last 200 rows of the file
+        if storm.empty:
+            storm = df.sort_values('time').tail(200)
+            
+        return jsonify({
+            "labels": storm['time'].dt.strftime('%m/%d %H:%M').tolist(),
+            "values": storm['value'].tolist()
+        })
+    except Exception as e:
+        print(f"Error reading CSV: {e}") # This will now show up in Render Logs
+        return jsonify({"error": str(e)}), 500
 
-# MODE 2: THE ORACLE (March Forecast)
 @app.route('/api/forecast')
 def get_forecast():
+    # Use the same logic we had before for the March math
+    import math
+    from datetime import datetime, timedelta
     forecast = []
-    start_date = datetime(2026, 3, 1, 0, 0)
-    
-    for i in range(48): # 48 hour forecast
-        current_time = start_date + timedelta(hours=i)
-        
-        # TIDE MATH: High tide every 12.4 hours
-        # We simulate the 0.5ft to 4.0ft range seen in your CSV
+    start = datetime(2026, 3, 1)
+    for i in range(48):
         tide = 1.0 + math.sin(i * (2 * math.pi / 12.4)) * 1.5
-        
-        # WEATHER PREDICTION: Add a "predicted" storm surge on March 2nd
-        surge = 0
-        if 24 <= i <= 36:
-            surge = 2.0 # The "predicted" rain impact
-            
-        val = round(tide + surge, 2)
-        forecast.append({"time": current_time.strftime('%b %d, %H:%M'), "value": val})
-        
+        val = round(tide + (2.0 if 24 <= i <= 36 else 0), 2)
+        forecast.append({"time": (start + timedelta(hours=i)).strftime('%b %d, %H:%M'), "value": val})
     return jsonify(forecast)
 
 if __name__ == "__main__":
