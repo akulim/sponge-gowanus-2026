@@ -1,55 +1,115 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Gowanus Dashboard</title>
+    <title>GOWANUS DARK | Command</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding: 40px; }
-        .container { background: white; width: 900px; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        .status-box { padding: 20px; border-radius: 10px; color: white; margin: 20px 0; transition: 0.5s; }
-        .btn-group { margin-bottom: 20px; }
-        button { padding: 12px 20px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; margin: 5px; }
-        #val-display { font-size: 3rem; font-weight: bold; display: block; }
+        :root { --bg: #0b0e14; --card: #161b22; --text: #c9d1d9; --accent: #58a6ff; }
+        body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Sidebar Control */
+        .sidebar { width: 300px; background: var(--card); padding: 30px; border-right: 1px solid #30363d; }
+        
+        /* Main Dashboard */
+        .main { flex-grow: 1; padding: 40px; display: flex; flex-direction: column; gap: 20px; position: relative; }
+        
+        /* The Animated Water Tank */
+        .water-tank { position: absolute; bottom: 0; right: 0; width: 100%; height: 100%; z-index: -1; opacity: 0.3; transition: 1s ease-in-out; }
+        .wave { position: absolute; bottom: 0; width: 100%; background: #238636; transition: 1s; }
+
+        /* Scorecards */
+        .score-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .scorecard { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid #30363d; }
+        .scorecard h4 { margin: 0; color: #8b949e; text-transform: uppercase; font-size: 12px; }
+        .scorecard .val { font-size: 32px; font-weight: bold; margin: 10px 0; }
+        
+        input[type="date"] { background: #0d1117; color: white; border: 1px solid #30363d; padding: 10px; width: 100%; border-radius: 5px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>Gowanus Canal Intelligence</h2>
-        
-        <div class="btn-group">
-            <button style="background: #6b7280; color: white;" onclick="loadData('before')">Historical (Raw)</button>
-            <button style="background: #3b82f6; color: white;" onclick="loadData('after')">AI Predicted (Clean)</button>
+
+    <div class="sidebar">
+        <h2>GOWANUS AI</h2>
+        <p>Backdate Model View:</p>
+        <input type="date" id="datePicker" value="2026-02-21" onchange="fetchData()">
+        <hr style="border: 0.5px solid #30363d; margin: 20px 0;">
+        <div class="scorecard" id="status-card">
+            <h4 id="activity-label">Current Risk</h4>
+            <div class="val" id="risk-text">LOW</div>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="score-grid">
+            <div class="scorecard">
+                <h4>Water Level</h4>
+                <div class="val" id="lvl-val">0.00 ft</div>
+            </div>
+            <div class="scorecard">
+                <h4>Contamination (CSO)</h4>
+                <div class="val" id="tox-val" style="color: #238636;">0%</div>
+            </div>
         </div>
 
-        <div id="status-card" class="status-box" style="background: #6b7280;">
-            <span id="val-display">0.0</span>
-            <h3 id="msg">Select Mode to Analyze</h3>
-            <p id="act"></p>
+        <div style="background: var(--card); padding: 20px; border-radius: 12px; height: 400px;">
+            <canvas id="mainChart"></canvas>
         </div>
 
-        <canvas id="chart"></canvas>
+        <div class="water-tank">
+            <div id="wave-bg" class="wave" style="height: 20%;"></div>
+        </div>
     </div>
 
     <script>
         let chart;
-        function loadData(mode) {
-            fetch('/api/data/' + mode).then(r => r.json()).then(data => {
-                document.getElementById('val-display').innerText = data.current + " ft";
-                document.getElementById('status-card').style.backgroundColor = data.status.color;
-                document.getElementById('msg').innerText = data.status.msg;
-                document.getElementById('act').innerText = data.status.act;
+        function fetchData() {
+            const date = document.getElementById('datePicker').value;
+            fetch(`/api/data?date=${date}`).then(r => r.json()).then(data => {
+                const latestLvl = data.levels[data.levels.length - 1];
+                const latestTox = data.toxins[data.toxins.length - 1];
 
+                // Update Scorecards
+                document.getElementById('lvl-val').innerText = latestLvl.toFixed(2) + " ft";
+                document.getElementById('tox-val').innerText = Math.round(latestTox) + "%";
+                
+                // Update Color Logic
+                let color = "#238636"; // Green
+                let risk = "SAFE";
+                if(latestTox > 40) { color = "#d29922"; risk = "CAUTION"; }
+                if(latestTox > 70) { color = "#f85149"; risk = "DANGER"; }
+                
+                document.getElementById('tox-val').style.color = color;
+                document.getElementById('wave-bg').style.backgroundColor = color;
+                document.getElementById('risk-text').innerText = risk;
+                document.getElementById('risk-text').style.color = color;
+
+                // Update Animation (Max height 100% at 5ft)
+                document.getElementById('wave-bg').style.height = (latestLvl / 5 * 100) + "%";
+
+                // Update Chart
                 if(chart) chart.destroy();
-                chart = new Chart(document.getElementById('chart'), {
+                const ctx = document.getElementById('mainChart').getContext('2d');
+                chart = new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: data.labels.map(l => l.split(' ')[1]),
-                        datasets: [{ label: 'Water Level', data: data.values, borderColor: 'white', backgroundColor: data.status.color + '44', fill: true }]
+                        labels: data.labels,
+                        datasets: [
+                            { label: 'Level', data: data.levels, borderColor: '#58a6ff', tension: 0.4, yAxisID: 'y' },
+                            { label: 'Toxins', data: data.toxins, borderColor: color, borderDash: [5,5], yAxisID: 'y1' }
+                        ]
                     },
-                    options: { scales: { y: { min: 0, max: 5 } } }
+                    options: { 
+                        responsive: true, maintainAspectRatio: false,
+                        scales: { 
+                            y: { position: 'left', grid: { color: '#30363d' } },
+                            y1: { position: 'right', display: false }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
                 });
             });
         }
+        fetchData();
     </script>
 </body>
 </html>
