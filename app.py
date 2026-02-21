@@ -10,37 +10,45 @@ def index():
 
 @app.route('/api/historical')
 def get_historical():
+    print("API: Historical request received")
     try:
-        # Load the file - standard comma now
-        df = pd.read_csv('continuous (1).csv')
+        # Check if file exists first
+        if not os.path.exists('continuous (1).csv'):
+            print("ERROR: continuous.csv NOT FOUND in root directory")
+            return jsonify({"error": "File not found"}), 404
+            
+        # Read file
+        df = pd.read_csv('continuous.csv')
+        print(f"SUCCESS: Loaded CSV with {len(df)} rows")
+        print(f"COLUMNS FOUND: {df.columns.tolist()}")
+
         df['time'] = pd.to_datetime(df['time'])
         
-        # BROAD FILTER: Look for the big Oct 30 surge
-        storm = df[(df['time'] >= '2025-10-30') & (df['time'] <= '2025-10-31')].sort_values('time')
+        # Grab the biggest spike to ensure we have data
+        storm = df.sort_values('value', ascending=False).head(100).sort_values('time')
         
-        # BACKUP: If Oct 30 is empty, just grab the last 200 rows of the file
-        if storm.empty:
-            storm = df.sort_values('time').tail(200)
-            
-        return jsonify({
+        data = {
             "labels": storm['time'].dt.strftime('%m/%d %H:%M').tolist(),
             "values": storm['value'].tolist()
-        })
+        }
+        print(f"SENDING: {len(data['values'])} data points")
+        return jsonify(data)
+        
     except Exception as e:
-        print(f"Error reading CSV: {e}") # This will now show up in Render Logs
+        print(f"CRITICAL ERROR: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/forecast')
 def get_forecast():
-    # Use the same logic we had before for the March math
     import math
     from datetime import datetime, timedelta
+    print("API: Forecast request received")
     forecast = []
     start = datetime(2026, 3, 1)
     for i in range(48):
         tide = 1.0 + math.sin(i * (2 * math.pi / 12.4)) * 1.5
         val = round(tide + (2.0 if 24 <= i <= 36 else 0), 2)
-        forecast.append({"time": (start + timedelta(hours=i)).strftime('%b %d, %H:%M'), "value": val})
+        forecast.append({"time": (start + timedelta(hours=i)).strftime('%H:%M'), "value": val})
     return jsonify(forecast)
 
 if __name__ == "__main__":
